@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  trmnl-web:
+    container_name: trmnl-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/jasonwaters/trmnl-web:latest
+    environment:
+      TRMNL_BASE_URL: ${TRMNL_BASE_URL:-https://paper.example.com}
+      TRMNL_MAC_ADDRESS: ${TRMNL_MAC_ADDRESS:-}
+      TRMNL_API_KEY: ${TRMNL_API_KEY:-}
+    ports:
+      - "${TRMNL_WEB_PORT:-8080}:80"
+    restart: unless-stopped

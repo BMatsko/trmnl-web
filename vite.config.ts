@@ -13,7 +13,7 @@ export default defineConfig({
       name: 'trmnl-dev-debug-logger',
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
-          if (req.method === 'POST' && req.url === '/__trmnl_proxy') {
+          if (req.method === 'POST' && req.url === '/__trmnl_proxy/image') {
             const origin = req.headers.origin
             const host = req.headers.host
             const isSameOrigin =
@@ -33,9 +33,14 @@ export default defineConfig({
             })
             req.on('end', () => {
               let targetUrl = ''
+              let baseUrl = ''
               try {
-                const parsed = JSON.parse(body) as { url?: string }
-                targetUrl = parsed.url ?? ''
+                const parsed = JSON.parse(body) as {
+                  imageUrl?: string
+                  baseUrl?: string
+                }
+                targetUrl = parsed.imageUrl ?? ''
+                baseUrl = parsed.baseUrl ?? ''
               } catch {
                 res.statusCode = 400
                 res.end('Invalid JSON payload')
@@ -44,22 +49,39 @@ export default defineConfig({
 
               if (!targetUrl) {
                 res.statusCode = 400
-                res.end('Missing url in payload')
+                res.end('Missing imageUrl in payload')
+                return
+              }
+
+              if (!baseUrl) {
+                res.statusCode = 400
+                res.end('Missing baseUrl in payload')
                 return
               }
 
               let parsedTargetUrl: URL
+              let parsedBaseUrl: URL
               try {
                 parsedTargetUrl = new URL(targetUrl)
+                parsedBaseUrl = new URL(baseUrl)
               } catch {
                 res.statusCode = 400
-                res.end('Invalid target URL')
+                res.end('Invalid target URL or base URL')
                 return
               }
 
-              if (!['http:', 'https:'].includes(parsedTargetUrl.protocol)) {
+              if (
+                !['http:', 'https:'].includes(parsedTargetUrl.protocol) ||
+                !['http:', 'https:'].includes(parsedBaseUrl.protocol)
+              ) {
                 res.statusCode = 400
                 res.end('Unsupported protocol')
+                return
+              }
+
+              if (parsedTargetUrl.origin !== parsedBaseUrl.origin) {
+                res.statusCode = 400
+                res.end('imageUrl origin must match baseUrl origin')
                 return
               }
 

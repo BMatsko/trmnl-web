@@ -21,6 +21,12 @@ export interface Device {
   [key: string]: unknown;
 }
 
+interface RuntimeConfig {
+  TRMNL_BASE_URL?: string;
+  TRMNL_MAC_ADDRESS?: string;
+  TRMNL_API_KEY?: string;
+}
+
 export interface CurrentImage {
   url: string; // data URL used for rendering
   originalUrl: string; // CDN URL from API
@@ -85,16 +91,25 @@ function resolveBaseUrl(
   configuredBaseUrl: string | null | undefined,
   environment: Environment
 ): string {
+  const runtimeConfig = getRuntimeConfig();
+  const runtimeBaseUrl = normalizeBaseUrl(runtimeConfig.TRMNL_BASE_URL ?? "");
   const envBaseUrl = normalizeBaseUrl(
     String(import.meta.env.VITE_TRMNL_BASE_URL ?? "")
   );
 
   return (
     normalizeBaseUrl(configuredBaseUrl ?? "") ??
+    runtimeBaseUrl ??
     envBaseUrl ??
     HOSTS[environment] ??
     HOSTS.production
   );
+}
+
+function getRuntimeConfig(): RuntimeConfig {
+  const config = (globalThis as { __TRMNL_CONFIG__?: RuntimeConfig })
+    .__TRMNL_CONFIG__;
+  return config ?? {};
 }
 
 function normalizeMacAddress(input: string): string | null {
@@ -198,6 +213,7 @@ function setStorageItem<T>(key: string, value: T): void {
 
 // Get the current state from localStorage
 export function getState(): TrmnlState {
+  const runtimeConfig = getRuntimeConfig();
   const environment = getStorageItem<Environment>(
     STORAGE_KEYS.environment,
     FALLBACK_ENVIRONMENT
@@ -206,16 +222,41 @@ export function getState(): TrmnlState {
     STORAGE_KEYS.baseUrl,
     null
   );
+  const runtimeMacAddress =
+    normalizeMacAddress(runtimeConfig.TRMNL_MAC_ADDRESS ?? "") ?? null;
+  const runtimeApiKey = (runtimeConfig.TRMNL_API_KEY ?? "").trim();
+  const runtimeDefaultDevice: Device | null = runtimeApiKey
+    ? {
+        id: "manual",
+        name: "Manual Device",
+        api_key: runtimeApiKey,
+      }
+    : null;
+
+  const storedDevices = getStorageItem<Device[]>(
+    STORAGE_KEYS.devices,
+    runtimeDefaultDevice ? [runtimeDefaultDevice] : []
+  );
+  const devices =
+    storedDevices.length === 0 && runtimeDefaultDevice
+      ? [runtimeDefaultDevice]
+      : storedDevices;
+
+  const storedSelectedDevice = getStorageItem<Device | null>(
+    STORAGE_KEYS.selectedDevice,
+    runtimeDefaultDevice
+  );
+  const selectedDevice = storedSelectedDevice ?? devices[0] ?? null;
 
   return {
     environment,
     baseUrl: resolveBaseUrl(configuredBaseUrl, environment),
-    macAddress: getStorageItem<string | null>(STORAGE_KEYS.macAddress, null),
-    devices: getStorageItem<Device[]>(STORAGE_KEYS.devices, []),
-    selectedDevice: getStorageItem<Device | null>(
-      STORAGE_KEYS.selectedDevice,
-      null
+    macAddress: getStorageItem<string | null>(
+      STORAGE_KEYS.macAddress,
+      runtimeMacAddress
     ),
+    devices,
+    selectedDevice,
     currentImage: getStorageItem<CurrentImage | null>(
       STORAGE_KEYS.currentImage,
       null
@@ -413,18 +454,18 @@ function buildImageDownloadRequest(imageUrl: string): {
   requestUrl: string;
   requestInit?: RequestInit;
 } {
-  if (!import.meta.env.DEV) {
-    return { requestUrl: imageUrl };
-  }
-
+  const currentBaseUrl = getState().baseUrl;
   return {
-    requestUrl: "/__trmnl_proxy",
+    requestUrl: "/__trmnl_proxy/image",
     requestInit: {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ url: imageUrl }),
+      body: JSON.stringify({
+        imageUrl,
+        baseUrl: currentBaseUrl,
+      }),
     },
   };
 }
@@ -576,7 +617,17 @@ export async function fetchNextScreen(): Promise<string | null> {
       return null;
     }
 
-    const imageDataUrl = await resolveDisplayImageUrl(imageUrl);
+    let renderableImageUrl = imageUrl;
+    try {
+      renderableImageUrl = await resolveDisplayImageUrl(imageUrl);
+    } catch (error) {
+      const reason =
+        error instanceof Error ? error.message : "Unknown image encoding error";
+      debugLog("Falling back to direct image URL rendering", {
+        imageUrl,
+        reason,
+      });
+    }
 
     // Calculate next fetch time
     const nextFetch = currentTime + refreshRate * 1000;
@@ -584,7 +635,7 @@ export async function fetchNextScreen(): Promise<string | null> {
     // Store the image and metadata
     updateState({
       currentImage: {
-        url: imageDataUrl,
+        url: renderableImageUrl,
         originalUrl: imageUrl,
         filename,
         timestamp: currentTime,
@@ -597,7 +648,7 @@ export async function fetchNextScreen(): Promise<string | null> {
       lastError: null,
     });
 
-    return imageDataUrl;
+    return renderableImageUrl;
   } catch (error) {
     console.error("Error fetching next screen:", error);
 
@@ -714,12 +765,17 @@ export async function fetchImage(forceRefresh = false): Promise<string | null> {
   const macAddress = resolveDeviceMacAddress(selectedDevice, stateMacAddress);
   const deviceId = selectedDevice?.id || "unknown";
   const isFirstSetup = !hasCompletedFirstSetup(deviceId);
+  const effectiveBaseUrl = baseUrl || getBaseUrl(environment);
 
   // Use /api/display when we explicitly want a fresh render (first setup or force refresh).
-  // Otherwise prefer read-only current screen endpoints.
+  // If /api/display is unavailable on a BYOS implementation, fall back to current-screen endpoints.
   const shouldUseDisplayEndpoint = isFirstSetup || forceRefresh;
   const apiUrls = shouldUseDisplayEndpoint
-    ? [`${baseUrl || getBaseUrl(environment)}/api/display`]
+    ? [
+        `${effectiveBaseUrl}/api/display`,
+        `${effectiveBaseUrl}/api/display/current`,
+        `${effectiveBaseUrl}/api/current_screen`,
+      ]
     : getCurrentScreenApiUrls(environment);
   const requestHeaders = buildDeviceHeaders(apiKey, macAddress);
 
@@ -802,7 +858,6 @@ export async function fetchImage(forceRefresh = false): Promise<string | null> {
     }
 
     const data = await response.json();
-    const effectiveBaseUrl = baseUrl || getBaseUrl(environment);
     const imageUrl = resolveImageUrl(data.image_url, effectiveBaseUrl);
     const filename = data.filename || "display.jpg";
     const refreshRate = data.refresh_rate || DEFAULT_REFRESH_RATE;
@@ -854,6 +909,7 @@ export async function fetchImage(forceRefresh = false): Promise<string | null> {
     const hasDataUrlCachedImage =
       typeof currentImage?.url === "string" &&
       currentImage.url.startsWith("data:image/");
+    const hasMatchingDirectUrlCachedImage = currentImage?.url === imageUrl;
 
     // Check if image URL has changed (optimization to skip re-download).
     // Only reuse cached image when it is already an encoded data URL.
@@ -861,10 +917,13 @@ export async function fetchImage(forceRefresh = false): Promise<string | null> {
       !forceRefresh &&
       currentImage &&
       currentImage.originalUrl === imageUrl &&
-      hasDataUrlCachedImage
+      (hasDataUrlCachedImage || hasMatchingDirectUrlCachedImage)
     ) {
       console.log("Image unchanged, updating timestamps only");
-      debugLog("Image URL unchanged; skipping download", { imageUrl });
+      debugLog("Image URL unchanged; reusing cached image", {
+        imageUrl,
+        cachedAsDataUrl: hasDataUrlCachedImage,
+      });
       const nextFetch = currentTime + refreshRate * 1000;
       updateState({
         refreshRate,
@@ -886,7 +945,17 @@ export async function fetchImage(forceRefresh = false): Promise<string | null> {
       );
     }
 
-    const imageDataUrl = await resolveDisplayImageUrl(imageUrl);
+    let renderableImageUrl = imageUrl;
+    try {
+      renderableImageUrl = await resolveDisplayImageUrl(imageUrl);
+    } catch (error) {
+      const reason =
+        error instanceof Error ? error.message : "Unknown image encoding error";
+      debugLog("Falling back to direct image URL rendering", {
+        imageUrl,
+        reason,
+      });
+    }
 
     // Calculate next fetch time
     const nextFetch = currentTime + refreshRate * 1000;
@@ -894,7 +963,7 @@ export async function fetchImage(forceRefresh = false): Promise<string | null> {
     // Store the image and metadata
     updateState({
       currentImage: {
-        url: imageDataUrl,
+        url: renderableImageUrl,
         originalUrl: imageUrl,
         filename,
         timestamp: currentTime,
@@ -913,7 +982,7 @@ export async function fetchImage(forceRefresh = false): Promise<string | null> {
       console.log(`First setup completed for device ${deviceId}`);
     }
 
-    return imageDataUrl;
+    return renderableImageUrl;
   } catch (error) {
     console.error("Error fetching image:", error);
 

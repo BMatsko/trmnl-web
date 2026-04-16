@@ -44,7 +44,39 @@ A web application that displays a TRMNL-compatible device screen in your browser
    bun run dev
    ```
 
-4. Open http://localhost:5173 in your browser
+4. Open `http://localhost:5173` in your browser
+
+### Run with Docker
+
+Build and run locally:
+
+```bash
+docker build -t trmnl-web:local .
+docker run --rm -p 8080:80 \
+  -e TRMNL_BASE_URL="https://paper.example.com" \
+  -e TRMNL_MAC_ADDRESS="AA:BB:CC:DD:EE:FF" \
+  -e TRMNL_API_KEY="your-device-api-key" \
+  trmnl-web:local
+```
+
+Then open `http://localhost:8080`.
+
+Runtime container environment variables:
+
+- `TRMNL_BASE_URL` - default server URL used by the app
+- `TRMNL_MAC_ADDRESS` - optional default MAC address
+- `TRMNL_API_KEY` - optional default API key (manual device mode)
+
+These values are served at runtime via `/runtime-config.js` and can be overridden later in the UI.
+
+### Docker Compose Example
+
+Sample compose config is provided at `docker-compose.example.yml`.
+
+```bash
+cp docker-compose.example.yml docker-compose.yml
+docker compose up --build -d
+```
 
 ### Setup
 
@@ -88,12 +120,19 @@ Set a default server host via `VITE_TRMNL_BASE_URL`:
 VITE_TRMNL_BASE_URL="https://paper.example.com" bun run dev
 ```
 
+For Docker runtime configuration, prefer:
+
+- `TRMNL_BASE_URL`
+- `TRMNL_MAC_ADDRESS`
+- `TRMNL_API_KEY`
+
 ### Local Debug Logging
 
 When running `bun run dev` or `npm run dev`:
 
 - API diagnostics are mirrored into local dev logs with a `[TRMNL DEV ...]` prefix
-- In development, image downloads are proxied through Vite (`/__trmnl_proxy`) to avoid browser CORS issues during data URL encoding
+- In development, image downloads are proxied through Vite (`/__trmnl_proxy/image`) to avoid browser CORS issues during data URL encoding
+- In Docker/runtime builds, image downloads are proxied through the built-in Bun endpoint (`/__trmnl_proxy/image`) so host changes in the UI still support data URL rendering
 
 If `vite.config.ts` changes, restart the dev server.
 
@@ -105,6 +144,19 @@ If `vite.config.ts` changes, restart the dev server.
 - `bun run build` - Build for production
 - `bun run preview` - Preview production build
 - `bun run lint` - Run ESLint
+
+## Container Publishing (GitHub Actions)
+
+A workflow is included at `.github/workflows/docker-publish.yml`.
+
+- Publishes images to GitHub Container Registry (`ghcr.io`)
+- Runs on pushes to `main`, version tags (`v*`), and manual dispatch
+- Publishes multi-architecture images (`linux/amd64`, `linux/arm64`)
+
+Image naming follows:
+
+- `ghcr.io/<owner>/<repo>:latest` (default branch)
+- `ghcr.io/<owner>/<repo>:<branch|tag|sha>`
 
 ### Tech Stack
 
