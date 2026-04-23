@@ -279,6 +279,7 @@ function DashboardPage() {
   return (
     <div
       className="trmnl-container"
+      onMouseEnter={revealControls}
       onMouseMove={revealControls}
       onPointerDown={revealControls}
       onTouchStart={revealControls}
@@ -473,6 +474,14 @@ function DashboardPage() {
 }
 
 function DetailsPage() {
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [serverUrlInput, setServerUrlInput] = useState('https://paper.example.com');
+  const [macAddressInput, setMacAddressInput] = useState('');
+  const [shadingEnabled, setShadingEnabled] = useState(true);
+  const [refreshSecondsInput, setRefreshSecondsInput] = useState('300');
+  const [copyStatus, setCopyStatus] = useState('Copy URL');
+  const copyResetTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     const previousBackground = document.body.style.background;
@@ -488,6 +497,14 @@ function DetailsPage() {
       document.body.style.background = previousBackground;
       document.body.style.color = previousColor;
       document.title = 'TRMNL Web';
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (copyResetTimerRef.current !== null) {
+        window.clearTimeout(copyResetTimerRef.current);
+      }
     };
   }, []);
 
@@ -530,6 +547,170 @@ function DetailsPage() {
     fontSize: '0.92em',
   };
 
+  const builderGridStyle = {
+    display: 'grid',
+    gap: '16px',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    marginTop: '18px',
+  };
+
+  const fieldStyle = {
+    display: 'grid',
+    gap: '8px',
+  };
+
+  const labelStyle = {
+    color: '#e2e8f0',
+    fontSize: '0.95rem',
+    fontWeight: 600,
+  };
+
+  const inputStyle = {
+    width: '100%',
+    padding: '12px 14px',
+    borderRadius: '14px',
+    border: '1px solid rgba(148, 163, 184, 0.24)',
+    background: 'rgba(2, 6, 23, 0.7)',
+    color: '#f8fafc',
+    outline: 'none',
+    fontSize: '0.98rem',
+  };
+
+  const toggleRowStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    padding: '12px 14px',
+    borderRadius: '14px',
+    border: '1px solid rgba(148, 163, 184, 0.24)',
+    background: 'rgba(2, 6, 23, 0.54)',
+  };
+
+  const toggleCopyStyle = {
+    display: 'grid',
+    gap: '4px',
+  };
+
+  const toggleTitleStyle = {
+    color: '#f8fafc',
+    fontSize: '0.98rem',
+    fontWeight: 600,
+    margin: 0,
+  };
+
+  const toggleHintStyle = {
+    margin: 0,
+    color: '#94a3b8',
+    fontSize: '0.9rem',
+    lineHeight: 1.4,
+  };
+
+  const urlCardStyle = {
+    marginTop: '18px',
+    padding: '18px',
+    borderRadius: '18px',
+    border: '1px solid rgba(148, 163, 184, 0.18)',
+    background: 'rgba(2, 6, 23, 0.88)',
+    display: 'grid',
+    gap: '14px',
+  };
+
+  const generatedUrlBoxStyle = {
+    padding: '14px',
+    borderRadius: '14px',
+    overflowX: 'auto',
+    color: '#f8fafc',
+    border: '1px solid rgba(148, 163, 184, 0.14)',
+    background: 'rgba(15, 23, 42, 0.7)',
+    fontFamily: 'ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace',
+    fontSize: '0.95rem',
+    lineHeight: 1.6,
+    wordBreak: 'break-all',
+  };
+
+  const actionRowStyle = {
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  };
+
+  const openButtonStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '12px 16px',
+    borderRadius: '14px',
+    border: '1px solid rgba(56, 189, 248, 0.28)',
+    background: 'rgba(14, 165, 233, 0.14)',
+    color: '#e0f2fe',
+    textDecoration: 'none',
+    fontWeight: 700,
+  };
+
+  const copyButtonStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '12px 16px',
+    borderRadius: '14px',
+    border: '1px solid rgba(148, 163, 184, 0.22)',
+    background: 'rgba(15, 23, 42, 0.78)',
+    color: '#f8fafc',
+    fontWeight: 700,
+    cursor: 'pointer',
+  };
+
+  const copyStatusStyle = {
+    margin: 0,
+    color: '#94a3b8',
+    fontSize: '0.92rem',
+  };
+
+  const normalizedRefreshSeconds = (() => {
+    const parsed = Number.parseInt(refreshSecondsInput, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 300;
+  })();
+
+  const dashboardOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+  const queryParams = new URLSearchParams();
+  if (apiKeyInput.trim()) {
+    queryParams.set('api_key', apiKeyInput.trim());
+  }
+  if (serverUrlInput.trim()) {
+    queryParams.set('server_url', serverUrlInput.trim());
+  }
+  if (macAddressInput.trim()) {
+    queryParams.set('mac_address', macAddressInput.trim());
+  }
+  queryParams.set('shading', shadingEnabled ? 'true' : 'false');
+  queryParams.set('refresh', String(normalizedRefreshSeconds));
+  const generatedUrl = (dashboardOrigin ? dashboardOrigin : '') + '/?' + queryParams.toString();
+
+  const handleCopyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedUrl);
+      setCopyStatus('Copied');
+      if (copyResetTimerRef.current !== null) {
+        window.clearTimeout(copyResetTimerRef.current);
+      }
+      copyResetTimerRef.current = window.setTimeout(() => {
+        setCopyStatus('Copy URL');
+        copyResetTimerRef.current = null;
+      }, 1800);
+    } catch {
+      setCopyStatus('Copy failed');
+      if (copyResetTimerRef.current !== null) {
+        window.clearTimeout(copyResetTimerRef.current);
+      }
+      copyResetTimerRef.current = window.setTimeout(() => {
+        setCopyStatus('Copy URL');
+        copyResetTimerRef.current = null;
+      }, 1800);
+    }
+  };
+
   const parameterRows = [
     {
       name: 'api_key',
@@ -563,9 +744,6 @@ function DetailsPage() {
     },
   ];
 
-  const exampleUrl =
-    '/?api_key=your_device_api_key&server_url=https://paper.example.com&mac_address=AA:BB:CC:DD:EE:FF&shading=true&refresh=15';
-
   return (
     <main style={pageStyle}>
       <section style={shellStyle}>
@@ -575,10 +753,10 @@ function DetailsPage() {
               TRMNL Web
             </p>
             <h1 style={{ margin: '12px 0 0', fontSize: 'clamp(2.1rem, 4vw, 3.5rem)', lineHeight: 1.05, color: '#f8fafc' }}>
-              dashboard URL parameters
+              dashboard URL builder
             </h1>
             <p style={{ margin: '12px 0 0', maxWidth: '70ch', fontSize: '1.02rem', lineHeight: 1.75, color: '#cbd5e1' }}>
-              Use these query parameters on the main dashboard route to jump straight into a configured session. The app reads them when it loads, then uses them to seed the dashboard connection settings.
+              Use the controls below to generate a dashboard URL with the settings you want. The app reads these query parameters on load, and refresh defaults to 300 seconds.
             </p>
           </div>
           <a
@@ -602,13 +780,88 @@ function DetailsPage() {
 
         <div style={{ display: 'grid', gap: '18px', marginTop: '28px' }}>
           <div style={cardStyle}>
-            <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#f8fafc' }}>How to use it</h2>
-            <ol style={{ margin: '16px 0 0', paddingLeft: '20px', color: '#cbd5e1', lineHeight: 1.8 }}>
-              <li>Open the dashboard with a URL like <code style={codeStyle}>/?api_key=...&server_url=...&refresh=...</code>.</li>
-              <li>Use <code style={codeStyle}>api_key</code> to preload your device credentials.</li>
-              <li>Use <code style={codeStyle}>server_url</code> to point the app at your Larapaper-compatible server.</li>
-              <li>Use <code style={codeStyle}>refresh</code> to override the refresh interval in seconds.</li>
-            </ol>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#f8fafc' }}>Build a URL</h2>
+            <p style={{ margin: '12px 0 0', color: '#cbd5e1', lineHeight: 1.75 }}>
+              Enter your details, toggle shading, and choose a refresh interval. The generated link updates automatically.
+            </p>
+
+            <div style={builderGridStyle}>
+              <label style={fieldStyle}>
+                <span style={labelStyle}>API Key</span>
+                <input
+                  type="text"
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  placeholder="Paste your device API key"
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={fieldStyle}>
+                <span style={labelStyle}>Server URL</span>
+                <input
+                  type="text"
+                  value={serverUrlInput}
+                  onChange={(e) => setServerUrlInput(e.target.value)}
+                  placeholder="https://paper.example.com"
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={fieldStyle}>
+                <span style={labelStyle}>MAC Address</span>
+                <input
+                  type="text"
+                  value={macAddressInput}
+                  onChange={(e) => setMacAddressInput(e.target.value)}
+                  placeholder="41:B4:10:39:A1:24"
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={toggleRowStyle}>
+                <span style={toggleCopyStyle}>
+                  <span style={toggleTitleStyle}>Shading</span>
+                  <span style={toggleHintStyle}>Keep the monochrome image rendering muted but add a little more depth.</span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={shadingEnabled}
+                  onChange={(e) => setShadingEnabled(e.target.checked)}
+                />
+              </label>
+
+              <label style={fieldStyle}>
+                <span style={labelStyle}>Refresh Seconds</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={refreshSecondsInput}
+                  onChange={(e) => setRefreshSecondsInput(e.target.value)}
+                  placeholder="300"
+                  style={inputStyle}
+                />
+              </label>
+            </div>
+
+            <div style={urlCardStyle}>
+              <div>
+                <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.16em' }}>Generated URL</p>
+                <div style={generatedUrlBoxStyle}>{generatedUrl}</div>
+              </div>
+              <div style={actionRowStyle}>
+                <a href={generatedUrl} style={openButtonStyle}>
+                  Open generated URL
+                </a>
+                <button onClick={() => void handleCopyUrl()} type="button" style={copyButtonStyle}>
+                  {copyStatus}
+                </button>
+              </div>
+              <p style={copyStatusStyle}>
+                Refresh defaults to 300 seconds, and shading is included as a true/false toggle.
+              </p>
+            </div>
           </div>
 
           <div style={{ display: 'grid', gap: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
@@ -628,7 +881,7 @@ function DetailsPage() {
           <div style={cardStyle}>
             <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#f8fafc' }}>Example</h2>
             <p style={{ margin: '12px 0 0', color: '#cbd5e1', lineHeight: 1.75 }}>
-              Combine all three parameters when you want the dashboard to open already configured:
+              Combine the parameters when you want the dashboard to open already configured:
             </p>
             <pre
               style={{
@@ -640,11 +893,11 @@ function DetailsPage() {
                 border: '1px solid rgba(148, 163, 184, 0.16)',
                 color: '#f8fafc',
                 fontSize: '0.95rem',
-                lineHeight: 1.7,
+                lineHeight: 1.6,
                 whiteSpace: 'pre-wrap',
               }}
             >
-{exampleUrl}
+              {generatedUrl}
             </pre>
           </div>
 
@@ -665,7 +918,6 @@ function DetailsPage() {
     </main>
   );
 }
-
 function App() {
   const [pathname, setPathname] = useState(() =>
     typeof window === 'undefined' ? '/' : window.location.pathname
