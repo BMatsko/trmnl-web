@@ -550,6 +550,12 @@ function DetailsPage() {
       example: '?mac_address=AA:BB:CC:DD:EE:FF',
     },
     {
+      name: 'shading',
+      description:
+        'Enables the muted color reinterpretation for monochrome images. Set it to false to keep the rendering more neutral.',
+      example: '?shading=true',
+    },
+    {
       name: 'refresh',
       description:
         'Overrides the refresh interval in seconds. Use a positive integer like 15 or 30. If omitted, the app uses 300 seconds.',
@@ -648,6 +654,7 @@ function DetailsPage() {
               <li>If a parameter is omitted, the dashboard falls back to the saved settings or the default app behavior.</li>
               <li><code style={codeStyle}>server_url</code> should be a valid http(s) origin and can include or omit the protocol.</li>
               <li><code style={codeStyle}>mac_address</code> is optional, but when provided it should be colon-separated like <code style={codeStyle}>AA:BB:CC:DD:EE:FF</code>.</li>
+              <li><code style={codeStyle}>shading</code> defaults to on, and accepts true/false values to toggle the muted reinterpretation.</li>
               <li><code style={codeStyle}>refresh</code> is measured in seconds and only accepts positive whole numbers.</li>
               <li>If you omit <code style={codeStyle}>refresh</code>, the app defaults to 300 seconds.</li>
               <li>The dashboard route is the home page; this help page lives at <code style={codeStyle}>/details</code>.</li>
