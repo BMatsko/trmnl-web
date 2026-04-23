@@ -1,5 +1,5 @@
 import { RotateCcw, Settings, SkipForward } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import { useTrmnl } from "./hooks/useTrmnl";
 
@@ -26,14 +26,29 @@ function App() {
     macAddress,
     refreshIntervalOverride,
   } = state;
+
   const [showSettings, setShowSettings] = useState(false);
+  const [showControls, setShowControls] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState(selectedDevice?.api_key ?? "");
   const [serverUrlInput, setServerUrlInput] = useState(baseUrl);
   const [macAddressInput, setMacAddressInput] = useState(macAddress ?? "");
   const [refreshIntervalInput, setRefreshIntervalInput] = useState(
     refreshIntervalOverride ? String(refreshIntervalOverride) : ""
   );
+  const hideControlsTimerRef = useRef<number | null>(null);
+  const showSettingsRef = useRef(showSettings);
   const dashboardUrl = `${baseUrl}/dashboard`;
+
+  useEffect(() => {
+    showSettingsRef.current = showSettings;
+    if (showSettings) {
+      setShowControls(true);
+      if (hideControlsTimerRef.current !== null) {
+        window.clearTimeout(hideControlsTimerRef.current);
+        hideControlsTimerRef.current = null;
+      }
+    }
+  }, [showSettings]);
 
   useEffect(() => {
     setServerUrlInput(baseUrl);
@@ -52,6 +67,33 @@ function App() {
       refreshIntervalOverride ? String(refreshIntervalOverride) : ""
     );
   }, [refreshIntervalOverride]);
+
+  useEffect(() => {
+    return () => {
+      if (hideControlsTimerRef.current !== null) {
+        window.clearTimeout(hideControlsTimerRef.current);
+      }
+    };
+  }, []);
+
+  const revealControls = useCallback(() => {
+    setShowControls(true);
+
+    if (hideControlsTimerRef.current !== null) {
+      window.clearTimeout(hideControlsTimerRef.current);
+      hideControlsTimerRef.current = null;
+    }
+
+    if (showSettingsRef.current) {
+      return;
+    }
+
+    hideControlsTimerRef.current = window.setTimeout(() => {
+      if (!showSettingsRef.current) {
+        setShowControls(false);
+      }
+    }, 2200);
+  }, []);
 
   const saveConnectionConfig = async (
     options: { requireApiKey: boolean; refreshAfterSave: boolean }
@@ -117,6 +159,7 @@ function App() {
 
     setApiKeyInput("");
     setShowSettings(false);
+    revealControls();
   };
 
   const handleSaveSettings = async () => {
@@ -129,12 +172,22 @@ function App() {
     }
 
     setShowSettings(false);
+    revealControls();
   };
 
-  // Render login prompt if no devices and no selected device with API key
+  const handleToggleSettings = () => {
+    setShowSettings((previous) => !previous);
+    revealControls();
+  };
+
+  const handleReset = () => {
+    localStorage.clear();
+    window.location.reload();
+  };
+
   if (devices.length === 0 && !selectedDevice && !isLoading) {
     return (
-      <div className="trmnl-container">
+      <div className="trmnl-container trmnl-setup-view">
         <div className="trmnl-error-container">
           <div className="trmnl-error-content">
             <h2>Welcome to TRMNL Web</h2>
@@ -208,25 +261,6 @@ function App() {
               </div>
             </div>
 
-            {/* <div className="trmnl-divider">
-              <span>or</span>
-            </div>
-
-            <div className="trmnl-setup-section">
-              <p className="trmnl-note">
-                If you're logged into usetrmnl.com, try loading your devices
-                automatically:
-              </p>
-              <div className="trmnl-button-group">
-                <button onClick={openLogin} className="trmnl-button">
-                  Log in to TRMNL
-                </button>
-                <button onClick={loadDevices} className="trmnl-button">
-                  Load Devices
-                </button>
-              </div>
-            </div> */}
-
             {error && <p className="trmnl-error-message">{error}</p>}
           </div>
         </div>
@@ -234,9 +268,20 @@ function App() {
     );
   }
 
+  const controlClassName = [
+    "trmnl-control-dock",
+    showControls ? "trmnl-control-dock--visible" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className="trmnl-container">
-      {/* Main Display Area */}
+    <div
+      className="trmnl-container"
+      onMouseMove={revealControls}
+      onPointerDown={revealControls}
+      onTouchStart={revealControls}
+    >
       <div className="trmnl-display">
         <div className="trmnl-image-container">
           {isLoading && !currentImage && (
@@ -264,192 +309,159 @@ function App() {
           )}
         </div>
 
-        {/* Info Overlay */}
-        <div className="trmnl-info-overlay">
-          <div className="trmnl-info-left">
-            {devices.length > 1 ? (
-              <select
-                value={selectedDevice?.id || ""}
-                onChange={(e) => {
-                  const device = devices.find((d) => d.id === e.target.value);
-                  if (device) {
-                    changeDevice(device);
-                    forceRefresh();
-                  }
-                }}
-                className="trmnl-device-select"
-              >
-                {devices.map((device) => (
-                  <option key={device.id} value={device.id}>
-                    {device.name || device.friendly_id || device.id}
-                  </option>
-                ))}
-              </select>
-            ) : (
+        <div className={controlClassName}>
+          <div className="trmnl-control-bar">
+            <div className="trmnl-control-meta">
               <span className="trmnl-device-name">
-                {selectedDevice?.name ||
-                  selectedDevice?.friendly_id ||
-                  "TRMNL Device"}
+                {selectedDevice?.name || selectedDevice?.friendly_id || "TRMNL Device"}
               </span>
-            )}
-          </div>
+              <span className="trmnl-countdown trmnl-countdown-inline">
+                Next refresh: <strong>{countdown}</strong>
+              </span>
+            </div>
 
-          <div className="trmnl-info-center">
-            <span className="trmnl-countdown">
-              Next refresh: <strong>{countdown}</strong>
-            </span>
-          </div>
+            <div className="trmnl-control-actions">
+              {devices.length > 1 ? (
+                <select
+                  value={selectedDevice?.id || ""}
+                  onChange={(e) => {
+                    const device = devices.find((d) => d.id === e.target.value);
+                    if (device) {
+                      changeDevice(device);
+                      forceRefresh();
+                    }
+                  }}
+                  className="trmnl-device-select trmnl-device-select-inline"
+                >
+                  {devices.map((device) => (
+                    <option key={device.id} value={device.id}>
+                      {device.name || device.friendly_id || device.id}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
 
-          <div className="trmnl-info-right">
-            <button
-              onClick={nextScreen}
-              type="button"
-              disabled={isLoading}
-              className="trmnl-button trmnl-button-small"
-              title="Next screen"
-            >
-              <SkipForward size={18} />
-            </button>
-            <button
-              onClick={forceRefresh}
-              type="button"
-              disabled={isLoading}
-              className="trmnl-button trmnl-button-small"
-              title="Refresh now"
-            >
-              <RotateCcw
-                size={18}
-                className={isLoading ? "trmnl-icon-spin" : ""}
-              />
-            </button>
-            {/* <div className="trmnl-tooltip-container">
               <button
-                onClick={previousScreen}
+                onClick={nextScreen}
+                type="button"
                 disabled={isLoading}
-                className="trmnl-button trmnl-button-small"
+                className="trmnl-button trmnl-button-small trmnl-button-icon"
+                title="Next screen"
               >
-                <Zap size={18} />
+                <SkipForward size={18} />
               </button>
-              <div className="trmnl-tooltip">
-                <strong>Special Function</strong>
-                <p>Triggers your device's configured special function (e.g., Previous Screen, Identify, etc.).</p>
-                <div className="trmnl-tooltip-divider"></div>
-                <p className="trmnl-tooltip-label">Setup Required:</p>
-                <ol>
-                  <li>Go to <a href="https://usetrmnl.com/dashboard" target="_blank" rel="noopener noreferrer">Dashboard</a></li>
-                  <li>Open device settings</li>
-                  <li>Configure your desired Special Function</li>
-                  <li>Save settings</li>
-                </ol>
-                <a href="https://help.usetrmnl.com/en/articles/9672080-special-functions" target="_blank" rel="noopener noreferrer" className="trmnl-tooltip-link">
-                  Learn more →
-                </a>
-              </div>
-            </div> */}
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              type="button"
-              className="trmnl-button trmnl-button-small"
-              title="Settings"
-            >
-              <Settings size={18} />
-            </button>
+              <button
+                onClick={forceRefresh}
+                type="button"
+                disabled={isLoading}
+                className="trmnl-button trmnl-button-small trmnl-button-icon"
+                title="Refresh now"
+              >
+                <RotateCcw
+                  size={18}
+                  className={isLoading ? "trmnl-icon-spin" : ""}
+                />
+              </button>
+              <button
+                onClick={handleToggleSettings}
+                type="button"
+                className="trmnl-button trmnl-button-small trmnl-button-icon"
+                title="Settings"
+              >
+                <Settings size={18} />
+              </button>
+            </div>
           </div>
+
+          {showSettings && (
+            <div className="trmnl-settings-panel trmnl-settings-panel-floating">
+              <h3>Settings</h3>
+
+              <div className="trmnl-settings-section">
+                <label htmlFor="server-url-input">Server URL</label>
+                <div className="trmnl-input-group">
+                  <input
+                    id="server-url-input"
+                    type="text"
+                    value={serverUrlInput}
+                    onChange={(e) => setServerUrlInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && void handleSaveSettings()}
+                    placeholder="https://paper.example.com"
+                    className="trmnl-input"
+                  />
+                </div>
+              </div>
+
+              <div className="trmnl-settings-section">
+                <label htmlFor="mac-address-input">MAC Address (Optional)</label>
+                <div className="trmnl-input-group">
+                  <input
+                    id="mac-address-input"
+                    type="text"
+                    value={macAddressInput}
+                    onChange={(e) => setMacAddressInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && void handleSaveSettings()}
+                    placeholder="41:B4:10:39:A1:24"
+                    className="trmnl-input"
+                  />
+                </div>
+              </div>
+
+              <div className="trmnl-settings-section">
+                <label htmlFor="api-key-input">API Key</label>
+                <div className="trmnl-input-group">
+                  <input
+                    id="api-key-input"
+                    type="text"
+                    value={apiKeyInput}
+                    onChange={(e) => setApiKeyInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && void handleSaveSettings()}
+                    placeholder="Paste your device API key"
+                    className="trmnl-input"
+                  />
+                </div>
+              </div>
+
+              <div className="trmnl-settings-section">
+                <label htmlFor="refresh-interval-input">
+                  Refresh Interval (seconds)
+                </label>
+                <div className="trmnl-input-group">
+                  <input
+                    id="refresh-interval-input"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={refreshIntervalInput}
+                    onChange={(e) => setRefreshIntervalInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && void handleSaveSettings()}
+                    placeholder="Defaults to device refresh rate"
+                    className="trmnl-input"
+                  />
+                </div>
+              </div>
+
+              <div className="trmnl-settings-actions">
+                <button
+                  onClick={() => void handleSaveSettings()}
+                  type="button"
+                  className="trmnl-button trmnl-button-primary"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={handleReset}
+                  type="button"
+                  className="trmnl-button"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-
-        {/* Settings Panel */}
-        {showSettings && (
-          <div className="trmnl-settings-panel">
-            <h3>Settings</h3>
-
-            <div className="trmnl-settings-section">
-              <label htmlFor="server-url-input">Server URL</label>
-              <div className="trmnl-input-group">
-                <input
-                  id="server-url-input"
-                  type="text"
-                  value={serverUrlInput}
-                  onChange={(e) => setServerUrlInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && void handleSaveSettings()}
-                  placeholder="https://paper.example.com"
-                  className="trmnl-input"
-                />
-              </div>
-            </div>
-
-            <div className="trmnl-settings-section">
-              <label htmlFor="mac-address-input">MAC Address (Optional)</label>
-              <div className="trmnl-input-group">
-                <input
-                  id="mac-address-input"
-                  type="text"
-                  value={macAddressInput}
-                  onChange={(e) => setMacAddressInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && void handleSaveSettings()}
-                  placeholder="41:B4:10:39:A1:24"
-                  className="trmnl-input"
-                />
-              </div>
-            </div>
-
-            <div className="trmnl-settings-section">
-              <label htmlFor="api-key-input">API Key</label>
-              <div className="trmnl-input-group">
-                <input
-                  id="api-key-input"
-                  type="text"
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && void handleSaveSettings()}
-                  placeholder="Paste your device API key"
-                  className="trmnl-input"
-                />
-              </div>
-            </div>
-
-            <div className="trmnl-settings-section">
-              <label htmlFor="refresh-interval-input">
-                Refresh Interval (seconds)
-              </label>
-              <div className="trmnl-input-group">
-                <input
-                  id="refresh-interval-input"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={refreshIntervalInput}
-                  onChange={(e) => setRefreshIntervalInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && void handleSaveSettings()}
-                  placeholder="Defaults to device refresh rate"
-                  className="trmnl-input"
-                />
-              </div>
-            </div>
-
-            <div className="trmnl-settings-actions">
-              <button
-                onClick={() => void handleSaveSettings()}
-                type="button"
-                className="trmnl-button trmnl-button-primary"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => {
-                  localStorage.clear();
-                  window.location.reload();
-                }}
-                type="button"
-                className="trmnl-button"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Error Toast */}
       {error && <div className="trmnl-toast trmnl-toast-error">{error}</div>}
     </div>
   );
