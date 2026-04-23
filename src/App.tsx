@@ -1,5 +1,5 @@
 import { RotateCcw, Settings, SkipForward } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import "./App.css";
 import { useTrmnl } from "./hooks/useTrmnl";
 
@@ -508,7 +508,7 @@ function DetailsPage() {
     };
   }, []);
 
-  const pageStyle = {
+  const pageStyle: CSSProperties = {
     minHeight: '100vh',
     padding: '48px 20px',
     background:
@@ -516,7 +516,7 @@ function DetailsPage() {
     color: '#e2e8f0',
   };
 
-  const shellStyle = {
+  const shellStyle: CSSProperties = {
     width: '100%',
     maxWidth: '980px',
     margin: '0 auto',
@@ -529,14 +529,14 @@ function DetailsPage() {
     WebkitBackdropFilter: 'blur(18px)',
   };
 
-  const cardStyle = {
+  const cardStyle: CSSProperties = {
     border: '1px solid rgba(148, 163, 184, 0.16)',
     borderRadius: '22px',
     background: 'rgba(15, 23, 42, 0.72)',
     padding: '20px',
   };
 
-  const codeStyle = {
+  const codeStyle: CSSProperties = {
     display: 'inline-block',
     padding: '2px 8px',
     borderRadius: '999px',
@@ -547,25 +547,25 @@ function DetailsPage() {
     fontSize: '0.92em',
   };
 
-  const builderGridStyle = {
+  const builderGridStyle: CSSProperties = {
     display: 'grid',
     gap: '16px',
     gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
     marginTop: '18px',
   };
 
-  const fieldStyle = {
+  const fieldStyle: CSSProperties = {
     display: 'grid',
     gap: '8px',
   };
 
-  const labelStyle = {
+  const labelStyle: CSSProperties = {
     color: '#e2e8f0',
     fontSize: '0.95rem',
     fontWeight: 600,
   };
 
-  const inputStyle = {
+  const inputStyle: CSSProperties = {
     width: '100%',
     padding: '12px 14px',
     borderRadius: '14px',
@@ -576,7 +576,7 @@ function DetailsPage() {
     fontSize: '0.98rem',
   };
 
-  const toggleRowStyle = {
+  const toggleRowStyle: CSSProperties = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -587,26 +587,26 @@ function DetailsPage() {
     background: 'rgba(2, 6, 23, 0.54)',
   };
 
-  const toggleCopyStyle = {
+  const toggleCopyStyle: CSSProperties = {
     display: 'grid',
     gap: '4px',
   };
 
-  const toggleTitleStyle = {
+  const toggleTitleStyle: CSSProperties = {
     color: '#f8fafc',
     fontSize: '0.98rem',
     fontWeight: 600,
     margin: 0,
   };
 
-  const toggleHintStyle = {
+  const toggleHintStyle: CSSProperties = {
     margin: 0,
     color: '#94a3b8',
     fontSize: '0.9rem',
     lineHeight: 1.4,
   };
 
-  const urlCardStyle = {
+  const urlCardStyle: CSSProperties = {
     marginTop: '18px',
     padding: '18px',
     borderRadius: '18px',
@@ -616,7 +616,7 @@ function DetailsPage() {
     gap: '14px',
   };
 
-  const generatedUrlBoxStyle = {
+  const generatedUrlBoxStyle: CSSProperties = {
     padding: '14px',
     borderRadius: '14px',
     overflowX: 'auto',
@@ -629,14 +629,14 @@ function DetailsPage() {
     wordBreak: 'break-all',
   };
 
-  const actionRowStyle = {
+  const actionRowStyle: CSSProperties = {
     display: 'flex',
     gap: '12px',
     flexWrap: 'wrap',
     alignItems: 'center',
   };
 
-  const openButtonStyle = {
+  const openButtonStyle: CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -649,7 +649,7 @@ function DetailsPage() {
     fontWeight: 700,
   };
 
-  const copyButtonStyle = {
+  const copyButtonStyle: CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -662,7 +662,7 @@ function DetailsPage() {
     cursor: 'pointer',
   };
 
-  const copyStatusStyle = {
+  const copyStatusStyle: CSSProperties = {
     margin: 0,
     color: '#94a3b8',
     fontSize: '0.92rem',
