@@ -24,6 +24,7 @@ function DashboardPage() {
     devices,
     baseUrl,
     macAddress,
+    shadingEnabled,
     refreshIntervalOverride,
   } = state;
 
@@ -295,7 +296,11 @@ function DashboardPage() {
             <img
               src={currentImage.url}
               alt="TRMNL Display"
-              className="trmnl-image"
+              className={
+                shadingEnabled
+                  ? "trmnl-image trmnl-image--shaded"
+                  : "trmnl-image trmnl-image--plain"
+              }
             />
           )}
 
@@ -553,7 +558,7 @@ function DetailsPage() {
   ];
 
   const exampleUrl =
-    '/?api_key=your_device_api_key&server_url=https://paper.example.com&mac_address=AA:BB:CC:DD:EE:FF&refresh=15';
+    '/?api_key=your_device_api_key&server_url=https://paper.example.com&mac_address=AA:BB:CC:DD:EE:FF&shading=true&refresh=15';
 
   return (
     <main style={pageStyle}>

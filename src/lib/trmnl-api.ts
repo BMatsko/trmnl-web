@@ -31,6 +31,7 @@ interface UrlConfig {
   apiKey?: string;
   serverUrl?: string;
   macAddress?: string;
+  shadingEnabled?: boolean;
   refreshIntervalOverride?: number | null;
 }
 
@@ -45,6 +46,7 @@ export interface TrmnlState {
   environment: Environment;
   baseUrl: string;
   macAddress: string | null;
+  shadingEnabled: boolean;
   refreshIntervalOverride: number | null;
   devices: Device[];
   selectedDevice: Device | null;
@@ -121,6 +123,27 @@ function getRuntimeConfig(): RuntimeConfig {
   return config ?? {};
 }
 
+function parseBooleanParam(input: string | null): boolean | null {
+  if (input === null) {
+    return null;
+  }
+
+  const normalized = input.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+
+  return null;
+}
+
 function getUrlConfig(): UrlConfig {
   if (typeof window === 'undefined') {
     return {};
@@ -135,6 +158,7 @@ function getUrlConfig(): UrlConfig {
     searchParams.get('baseUrl')?.trim() ??
     '';
   const macAddress = searchParams.get('mac_address')?.trim() ?? '';
+  const shadingEnabled = parseBooleanParam(searchParams.get('shading'));
   const refreshParam =
     searchParams.get('refresh')?.trim() ??
     searchParams.get('refresh_interval')?.trim() ??
@@ -146,6 +170,7 @@ function getUrlConfig(): UrlConfig {
     apiKey: apiKey || undefined,
     serverUrl: serverUrl || undefined,
     macAddress: macAddress || undefined,
+    shadingEnabled: shadingEnabled ?? undefined,
     refreshIntervalOverride:
       parsedRefresh !== null && Number.isFinite(parsedRefresh)
         ? parsedRefresh
@@ -390,6 +415,7 @@ export function getState(): TrmnlState {
     macAddress:
       urlMacAddress ??
       getStorageItem<string | null>(STORAGE_KEYS.macAddress, runtimeMacAddress),
+    shadingEnabled: urlConfig.shadingEnabled ?? true,
     refreshIntervalOverride:
       normalizeRefreshIntervalOverride(urlConfig.refreshIntervalOverride ?? null) ??
       getStorageItem<number | null>(STORAGE_KEYS.refreshIntervalOverride, null),
