@@ -27,6 +27,13 @@ interface RuntimeConfig {
   TRMNL_API_KEY?: string;
 }
 
+interface UrlConfig {
+  apiKey?: string;
+  serverUrl?: string;
+  macAddress?: string;
+  refreshIntervalOverride?: number | null;
+}
+
 export interface CurrentImage {
   url: string; // data URL used for rendering
   originalUrl: string; // CDN URL from API
@@ -262,69 +269,7 @@ function setStorageItem<T>(key: string, value: T): void {
 }
 
 // Get the current state from localStorage
-export function getState(): TrmnlState {
-  const runtimeConfig = getRuntimeConfig();
-  const environment = getStorageItem<Environment>(
-    STORAGE_KEYS.environment,
-    FALLBACK_ENVIRONMENT
-  );
-  const configuredBaseUrl = getStorageItem<string | null>(
-    STORAGE_KEYS.baseUrl,
-    null
-  );
-  const runtimeMacAddress =
-    normalizeMacAddress(runtimeConfig.TRMNL_MAC_ADDRESS ?? "") ?? null;
-  const runtimeApiKey = (runtimeConfig.TRMNL_API_KEY ?? "").trim();
-  const runtimeDefaultDevice: Device | null = runtimeApiKey
-    ? {
-        id: "manual",
-        name: "Manual Device",
-        api_key: runtimeApiKey,
-      }
-    : null;
 
-  const storedDevices = getStorageItem<Device[]>(
-    STORAGE_KEYS.devices,
-    runtimeDefaultDevice ? [runtimeDefaultDevice] : []
-  );
-  const devices =
-    storedDevices.length === 0 && runtimeDefaultDevice
-      ? [runtimeDefaultDevice]
-      : storedDevices;
-
-  const storedSelectedDevice = getStorageItem<Device | null>(
-    STORAGE_KEYS.selectedDevice,
-    runtimeDefaultDevice
-  );
-  const selectedDevice = storedSelectedDevice ?? devices[0] ?? null;
-
-  return {
-    environment,
-    baseUrl: resolveBaseUrl(configuredBaseUrl, environment),
-    macAddress: getStorageItem<string | null>(
-      STORAGE_KEYS.macAddress,
-      runtimeMacAddress
-    ),
-    refreshIntervalOverride: normalizeRefreshIntervalOverride(
-      getStorageItem<number | null>(STORAGE_KEYS.refreshIntervalOverride, null)
-    ),
-    devices,
-    selectedDevice,
-    currentImage: getStorageItem<CurrentImage | null>(
-      STORAGE_KEYS.currentImage,
-      null
-    ),
-    lastFetch: getStorageItem<number | null>(STORAGE_KEYS.lastFetch, null),
-    nextFetch: getStorageItem<number | null>(STORAGE_KEYS.nextFetch, null),
-    refreshRate: getStorageItem<number>(
-      STORAGE_KEYS.refreshRate,
-      DEFAULT_REFRESH_RATE
-    ),
-    retryCount: getStorageItem<number>(STORAGE_KEYS.retryCount, 0),
-    retryAfter: getStorageItem<number | null>(STORAGE_KEYS.retryAfter, null),
-    lastError: getStorageItem<string | null>(STORAGE_KEYS.lastError, null),
-  };
-}
 
 // Update state in localStorage
 export function updateState(updates: Partial<TrmnlState>): TrmnlState {
