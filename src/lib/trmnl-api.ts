@@ -8,7 +8,7 @@ const HOSTS = {
   production: "https://usetrmnl.com",
 };
 
-const DEFAULT_REFRESH_RATE = 30; // seconds
+const DEFAULT_REFRESH_RATE = 300; // seconds
 const FALLBACK_ENVIRONMENT: Environment = "production";
 
 export type Environment = "development" | "production";
@@ -238,13 +238,53 @@ function getCurrentScreenApiUrls(environment: Environment): string[] {
   return [`${baseUrl}/api/current_screen`];
 }
 
+function extractImageUrlCandidate(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  for (const key of ["url", "href", "src", "value"]) {
+    const candidate = record[key];
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return null;
+}
+
+function resolveMetadataImageUrl(data: unknown): string | null {
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+
+  const record = data as Record<string, unknown>;
+  return extractImageUrlCandidate(
+    record.image_url ??
+      record.imageUrl ??
+      record.image ??
+      record.url ??
+      record.display_image_url ??
+      record.displayImageUrl ??
+      record.rendered_image_url ??
+      record.renderedImageUrl
+  );
+}
+
 function resolveImageUrl(imageUrl: unknown, baseUrl: string): string | null {
-  if (typeof imageUrl !== "string" || !imageUrl.trim()) {
+  const candidate = extractImageUrlCandidate(imageUrl);
+  if (!candidate) {
     return null;
   }
 
   try {
-    return new URL(imageUrl, baseUrl).toString();
+    return new URL(candidate, baseUrl).toString();
   } catch {
     return null;
   }
@@ -706,7 +746,8 @@ export async function fetchNextScreen(): Promise<string | null> {
     }
 
     const data = await response.json();
-    const imageUrl = resolveImageUrl(data.image_url, baseUrl || getBaseUrl(environment));
+    const rawImageUrl = resolveMetadataImageUrl(data);
+    const imageUrl = resolveImageUrl(rawImageUrl, baseUrl || getBaseUrl(environment));
     const filename = data.filename || "display.jpg";
     const refreshRate = resolveRefreshRate(
       data.refresh_rate,
@@ -719,18 +760,18 @@ export async function fetchNextScreen(): Promise<string | null> {
       refreshRate,
       apiRefreshRate: data.refresh_rate ?? null,
       refreshIntervalOverride,
-      rawImageUrl: data.image_url ?? null,
+      rawImageUrl: rawImageUrl ?? null,
     });
 
     if (!imageUrl) {
       if (
-        typeof data.image_url === "string" &&
-        data.image_url.startsWith("data:image/")
+        typeof rawImageUrl === "string" &&
+        rawImageUrl.startsWith("data:image/")
       ) {
         const nextFetchFromInline = currentTime + refreshRate * 1000;
         updateState({
           currentImage: {
-            url: data.image_url,
+            url: rawImageUrl,
             originalUrl: "inline-base64",
             filename,
             timestamp: currentTime,
@@ -742,7 +783,7 @@ export async function fetchNextScreen(): Promise<string | null> {
           retryAfter: null,
           lastError: null,
         });
-        return data.image_url;
+        return rawImageUrl;
       }
 
       const metadataError =
@@ -993,7 +1034,8 @@ export async function fetchImage(forceRefresh = false): Promise<string | null> {
     }
 
     const data = await response.json();
-    const imageUrl = resolveImageUrl(data.image_url, effectiveBaseUrl);
+    const rawImageUrl = resolveMetadataImageUrl(data);
+    const imageUrl = resolveImageUrl(rawImageUrl, effectiveBaseUrl);
     const filename = data.filename || "display.jpg";
     const refreshRate = resolveRefreshRate(
       data.refresh_rate,
@@ -1006,7 +1048,7 @@ export async function fetchImage(forceRefresh = false): Promise<string | null> {
       refreshRate,
       apiRefreshRate: data.refresh_rate ?? null,
       refreshIntervalOverride,
-      rawImageUrl: data.image_url ?? null,
+      rawImageUrl: rawImageUrl ?? null,
       renderedAt: data.rendered_at ?? null,
     });
 
@@ -1027,13 +1069,13 @@ export async function fetchImage(forceRefresh = false): Promise<string | null> {
 
     if (!imageUrl) {
       if (
-        typeof data.image_url === "string" &&
-        data.image_url.startsWith("data:image/")
+        typeof rawImageUrl === "string" &&
+        rawImageUrl.startsWith("data:image/")
       ) {
         const nextFetchFromInline = currentTime + refreshRate * 1000;
         updateState({
           currentImage: {
-            url: data.image_url,
+            url: rawImageUrl,
             originalUrl: "inline-base64",
             filename,
             timestamp: currentTime,
@@ -1051,7 +1093,7 @@ export async function fetchImage(forceRefresh = false): Promise<string | null> {
           console.log(`First setup completed for device ${deviceId}`);
         }
 
-        return data.image_url;
+        return rawImageUrl;
       }
 
       const metadataError =
