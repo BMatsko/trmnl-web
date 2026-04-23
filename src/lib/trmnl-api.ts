@@ -121,6 +121,38 @@ function getRuntimeConfig(): RuntimeConfig {
   return config ?? {};
 }
 
+function getUrlConfig(): UrlConfig {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const apiKey = searchParams.get('api_key')?.trim() ?? '';
+  const serverUrl =
+    searchParams.get('server_url')?.trim() ??
+    searchParams.get('serverUrl')?.trim() ??
+    searchParams.get('base_url')?.trim() ??
+    searchParams.get('baseUrl')?.trim() ??
+    '';
+  const macAddress = searchParams.get('mac_address')?.trim() ?? '';
+  const refreshParam =
+    searchParams.get('refresh')?.trim() ??
+    searchParams.get('refresh_interval')?.trim() ??
+    searchParams.get('refreshInterval')?.trim() ??
+    '';
+  const parsedRefresh = refreshParam ? Number.parseInt(refreshParam, 10) : null;
+
+  return {
+    apiKey: apiKey || undefined,
+    serverUrl: serverUrl || undefined,
+    macAddress: macAddress || undefined,
+    refreshIntervalOverride:
+      parsedRefresh !== null && Number.isFinite(parsedRefresh)
+        ? parsedRefresh
+        : undefined,
+  };
+}
+
 function normalizeMacAddress(input: string): string | null {
   const normalized = input.trim().toUpperCase().replace(/[^0-9A-F]/g, "");
   if (normalized.length !== 12) {
@@ -269,7 +301,75 @@ function setStorageItem<T>(key: string, value: T): void {
 }
 
 // Get the current state from localStorage
+export function getState(): TrmnlState {
+  const runtimeConfig = getRuntimeConfig();
+  const urlConfig = getUrlConfig();
+  const environment = getStorageItem<Environment>(
+    STORAGE_KEYS.environment,
+    FALLBACK_ENVIRONMENT
+  );
+  const runtimeBaseUrl = normalizeBaseUrl(runtimeConfig.TRMNL_BASE_URL ?? '');
+  const urlBaseUrl = normalizeBaseUrl(urlConfig.serverUrl ?? '');
+  const configuredBaseUrl =
+    urlBaseUrl ?? getStorageItem<string | null>(STORAGE_KEYS.baseUrl, null);
+  const runtimeMacAddress =
+    normalizeMacAddress(runtimeConfig.TRMNL_MAC_ADDRESS ?? '') ?? null;
+  const urlMacAddress = normalizeMacAddress(urlConfig.macAddress ?? '') ?? null;
+  const runtimeApiKey = (runtimeConfig.TRMNL_API_KEY ?? '').trim();
+  const urlApiKey = (urlConfig.apiKey ?? '').trim();
+  const effectiveApiKey = urlApiKey || runtimeApiKey;
+  const runtimeDefaultDevice: Device | null = effectiveApiKey
+    ? {
+        id: 'manual',
+        name: 'Manual Device',
+        api_key: effectiveApiKey,
+      }
+    : null;
 
+  const storedDevices = getStorageItem<Device[]>(
+    STORAGE_KEYS.devices,
+    runtimeDefaultDevice ? [runtimeDefaultDevice] : []
+  );
+  const devices = runtimeDefaultDevice
+    ? [
+        runtimeDefaultDevice,
+        ...storedDevices.filter((device) => device.id !== runtimeDefaultDevice.id),
+      ]
+    : storedDevices;
+
+  const storedSelectedDevice = getStorageItem<Device | null>(
+    STORAGE_KEYS.selectedDevice,
+    runtimeDefaultDevice
+  );
+  const selectedDevice =
+    runtimeDefaultDevice ?? storedSelectedDevice ?? devices[0] ?? null;
+
+  return {
+    environment,
+    baseUrl: resolveBaseUrl(configuredBaseUrl ?? runtimeBaseUrl, environment),
+    macAddress:
+      urlMacAddress ??
+      getStorageItem<string | null>(STORAGE_KEYS.macAddress, runtimeMacAddress),
+    refreshIntervalOverride:
+      normalizeRefreshIntervalOverride(urlConfig.refreshIntervalOverride ?? null) ??
+      getStorageItem<number | null>(STORAGE_KEYS.refreshIntervalOverride, null),
+    devices,
+    selectedDevice,
+    currentImage: getStorageItem<CurrentImage | null>(
+      STORAGE_KEYS.currentImage,
+      null
+    ),
+    lastFetch: getStorageItem<number | null>(STORAGE_KEYS.lastFetch, null),
+    nextFetch: getStorageItem<number | null>(STORAGE_KEYS.nextFetch, null),
+    refreshRate: getStorageItem<number>(
+      STORAGE_KEYS.refreshRate,
+      DEFAULT_REFRESH_RATE
+    ),
+    retryCount: getStorageItem<number>(STORAGE_KEYS.retryCount, 0),
+    retryAfter: getStorageItem<number | null>(STORAGE_KEYS.retryAfter, null),
+    lastError: getStorageItem<string | null>(STORAGE_KEYS.lastError, null),
+  };
+}
 
 // Update state in localStorage
 export function updateState(updates: Partial<TrmnlState>): TrmnlState {
