@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import { useTrmnl } from "./hooks/useTrmnl";
 
-function App() {
+function DashboardPage() {
   const {
     state,
     isLoading,
@@ -465,6 +465,203 @@ function App() {
       {error && <div className="trmnl-toast trmnl-toast-error">{error}</div>}
     </div>
   );
+}
+
+function DetailsPage() {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const previousBackground = document.body.style.background;
+    const previousColor = document.body.style.color;
+
+    document.body.style.overflow = 'auto';
+    document.body.style.background = '#020617';
+    document.body.style.color = '#e2e8f0';
+    document.title = 'TRMNL Web · Details';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.background = previousBackground;
+      document.body.style.color = previousColor;
+      document.title = 'TRMNL Web';
+    };
+  }, []);
+
+  const pageStyle = {
+    minHeight: '100vh',
+    padding: '48px 20px',
+    background:
+      'radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 30%), radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 26%), linear-gradient(180deg, #020617 0%, #0f172a 54%, #020617 100%)',
+    color: '#e2e8f0',
+  };
+
+  const shellStyle = {
+    width: '100%',
+    maxWidth: '980px',
+    margin: '0 auto',
+    padding: '32px',
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    borderRadius: '28px',
+    background: 'rgba(15, 23, 42, 0.78)',
+    boxShadow: '0 30px 80px rgba(2, 6, 23, 0.45)',
+    backdropFilter: 'blur(18px)',
+    WebkitBackdropFilter: 'blur(18px)',
+  };
+
+  const cardStyle = {
+    border: '1px solid rgba(148, 163, 184, 0.16)',
+    borderRadius: '22px',
+    background: 'rgba(15, 23, 42, 0.72)',
+    padding: '20px',
+  };
+
+  const codeStyle = {
+    display: 'inline-block',
+    padding: '2px 8px',
+    borderRadius: '999px',
+    background: 'rgba(15, 23, 42, 0.9)',
+    border: '1px solid rgba(148, 163, 184, 0.18)',
+    color: '#f8fafc',
+    fontFamily: 'ui-monospace, SFMono-Regular, SF Mono, Menlo, monospace',
+    fontSize: '0.92em',
+  };
+
+  const parameterRows = [
+    {
+      name: 'api_key',
+      description:
+        'Preloads the dashboard with your device API key so you can skip the setup form.',
+      example: '?api_key=your_device_api_key',
+    },
+    {
+      name: 'server_url',
+      description:
+        'Points the dashboard at the root of your TRMNL-compatible server. Use the server origin, not an API path.',
+      example: '?server_url=https://paper.example.com',
+    },
+    {
+      name: 'refresh',
+      description:
+        'Overrides the refresh interval in seconds. Use a positive integer like 15 or 30.',
+      example: '?refresh=15',
+    },
+  ];
+
+  const exampleUrl =
+    '/?api_key=your_device_api_key&server_url=https://paper.example.com&refresh=15';
+
+  return (
+    <main style={pageStyle}>
+      <section style={shellStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div>
+            <p style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.22em', color: '#38bdf8', fontSize: '12px', fontWeight: 700 }}>
+              TRMNL Web
+            </p>
+            <h1 style={{ margin: '12px 0 0', fontSize: 'clamp(2.1rem, 4vw, 3.5rem)', lineHeight: 1.05, color: '#f8fafc' }}>
+              dashboard URL parameters
+            </h1>
+            <p style={{ margin: '12px 0 0', maxWidth: '70ch', fontSize: '1.02rem', lineHeight: 1.75, color: '#cbd5e1' }}>
+              Use these query parameters on the main dashboard route to jump straight into a configured session. The app reads them when it loads, then uses them to seed the dashboard connection settings.
+            </p>
+          </div>
+          <a
+            href="/"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '12px 18px',
+              borderRadius: '16px',
+              border: '1px solid rgba(56, 189, 248, 0.28)',
+              background: 'rgba(14, 165, 233, 0.14)',
+              color: '#e0f2fe',
+              textDecoration: 'none',
+              fontWeight: 700,
+            }}
+          >
+            Open dashboard
+          </a>
+        </div>
+
+        <div style={{ display: 'grid', gap: '18px', marginTop: '28px' }}>
+          <div style={cardStyle}>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#f8fafc' }}>How to use it</h2>
+            <ol style={{ margin: '16px 0 0', paddingLeft: '20px', color: '#cbd5e1', lineHeight: 1.8 }}>
+              <li>Open the dashboard with a URL like <code style={codeStyle}>/?api_key=...&server_url=...&refresh=...</code>.</li>
+              <li>Use <code style={codeStyle}>api_key</code> to preload your device credentials.</li>
+              <li>Use <code style={codeStyle}>server_url</code> to point the app at your Larapaper-compatible server.</li>
+              <li>Use <code style={codeStyle}>refresh</code> to override the refresh interval in seconds.</li>
+            </ol>
+          </div>
+
+          <div style={{ display: 'grid', gap: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+            {parameterRows.map((parameter) => (
+              <article key={parameter.name} style={cardStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'start' }}>
+                  <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '1.05rem' }}><code style={codeStyle}>{parameter.name}</code></h3>
+                </div>
+                <p style={{ margin: '12px 0 0', color: '#cbd5e1', lineHeight: 1.75 }}>{parameter.description}</p>
+                <p style={{ margin: '12px 0 0', color: '#94a3b8', fontSize: '0.95rem' }}>
+                  Example: <code style={codeStyle}>{parameter.example}</code>
+                </p>
+              </article>
+            ))}
+          </div>
+
+          <div style={cardStyle}>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#f8fafc' }}>Example</h2>
+            <p style={{ margin: '12px 0 0', color: '#cbd5e1', lineHeight: 1.75 }}>
+              Combine all three parameters when you want the dashboard to open already configured:
+            </p>
+            <pre
+              style={{
+                margin: '16px 0 0',
+                padding: '16px',
+                overflowX: 'auto',
+                borderRadius: '18px',
+                background: 'rgba(2, 6, 23, 0.92)',
+                border: '1px solid rgba(148, 163, 184, 0.16)',
+                color: '#f8fafc',
+                fontSize: '0.95rem',
+                lineHeight: 1.7,
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+{exampleUrl}
+            </pre>
+          </div>
+
+          <div style={cardStyle}>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#f8fafc' }}>Notes</h2>
+            <ul style={{ margin: '16px 0 0', paddingLeft: '20px', color: '#cbd5e1', lineHeight: 1.8 }}>
+              <li>If a parameter is omitted, the dashboard falls back to the saved settings or the default app behavior.</li>
+              <li><code style={codeStyle}>server_url</code> should be a valid http(s) origin and can include or omit the protocol.</li>
+              <li><code style={codeStyle}>refresh</code> only accepts positive whole numbers in seconds.</li>
+              <li>The dashboard route is the home page; this help page lives at <code style={codeStyle}>/details</code>.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function App() {
+  const [pathname, setPathname] = useState(() =>
+    typeof window === 'undefined' ? '/' : window.location.pathname
+  );
+
+  useEffect(() => {
+    const handlePopState = () => setPathname(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  if (pathname === '/details') {
+    return <DetailsPage />;
+  }
+
+  return <DashboardPage />;
 }
 
 export default App;
