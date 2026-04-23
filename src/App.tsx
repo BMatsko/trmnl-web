@@ -539,6 +539,12 @@ function DetailsPage() {
       example: '?server_url=https://paper.example.com',
     },
     {
+      name: 'mac_address',
+      description:
+        'Optionally preloads the device MAC address for servers that route requests with API key + MAC. Use a colon-separated address like AA:BB:CC:DD:EE:FF.',
+      example: '?mac_address=AA:BB:CC:DD:EE:FF',
+    },
+    {
       name: 'refresh',
       description:
         'Overrides the refresh interval in seconds. Use a positive integer like 15 or 30.',
@@ -547,7 +553,7 @@ function DetailsPage() {
   ];
 
   const exampleUrl =
-    '/?api_key=your_device_api_key&server_url=https://paper.example.com&refresh=15';
+    '/?api_key=your_device_api_key&server_url=https://paper.example.com&mac_address=AA:BB:CC:DD:EE:FF&refresh=15';
 
   return (
     <main style={pageStyle}>
@@ -636,6 +642,7 @@ function DetailsPage() {
             <ul style={{ margin: '16px 0 0', paddingLeft: '20px', color: '#cbd5e1', lineHeight: 1.8 }}>
               <li>If a parameter is omitted, the dashboard falls back to the saved settings or the default app behavior.</li>
               <li><code style={codeStyle}>server_url</code> should be a valid http(s) origin and can include or omit the protocol.</li>
+              <li><code style={codeStyle}>mac_address</code> is optional, but when provided it should be colon-separated like <code style={codeStyle}>AA:BB:CC:DD:EE:FF</code>.</li>
               <li><code style={codeStyle}>refresh</code> only accepts positive whole numbers in seconds.</li>
               <li>The dashboard route is the home page; this help page lives at <code style={codeStyle}>/details</code>.</li>
             </ul>
